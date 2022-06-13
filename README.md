@@ -1,16 +1,10 @@
-# utf8_iter
+# utf16_iter
 
-[![crates.io](https://img.shields.io/crates/v/utf8_iter.svg)](https://crates.io/crates/utf8_iter)
-[![docs.rs](https://docs.rs/utf8_iter/badge.svg)](https://docs.rs/utf8_iter/)
+[![crates.io](https://img.shields.io/crates/v/utf16_iter.svg)](https://crates.io/crates/utf16_iter)
+[![docs.rs](https://docs.rs/utf16_iter/badge.svg)](https://docs.rs/utf16_iter/)
 
-utf8_iter provides iteration by `char` over potentially-invalid UTF-8 `&[u8]`
-such that UTF-8 errors are handled according to the WHATWG Encoding Standard.
-
-Key parts of the code are copypaste from the UTF-8 to UTF-16 conversion code
-in `encoding_rs`, which was optimized for speed in the case of valid input.
-The implementation here uses the structure that was found to be fast in the
-`encoding_rs` context but the structure hasn't been benchmarked in this
-context.
+utf16_iter provides iteration by `char` over potentially-invalid UTF-16 `&[u16]`
+such that UTF-16 errors are replaced with the REPLACEMENT CHARACTER.
 
 At present, `DoubleEndedIterator` is not implemented, but it could be
 implemented in the future.
@@ -22,11 +16,11 @@ This is a `no_std` crate.
 TL;DR: `Apache-2.0 OR MIT`
 
 Please see the file named
-[COPYRIGHT](https://github.com/hsivonen/utf8_iter/blob/master/COPYRIGHT).
+[COPYRIGHT](https://github.com/hsivonen/utf16_iter/blob/master/COPYRIGHT).
 
 ## Documentation
 
-Generated [API documentation](https://docs.rs/utf8_iter/) is available
+Generated [API documentation](https://docs.rs/utf16_iter/) is available
 online.
 
 ## Release Notes

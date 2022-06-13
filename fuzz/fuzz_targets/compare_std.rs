@@ -3,10 +3,10 @@
 
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use utf8_iter::Utf8Chars;
+use utf16_iter::Utf16Chars;
+use core::char::{decode_utf16, REPLACEMENT_CHARACTER};
 
 fuzz_target!(|data: &[u8]| {
-    let from_iter: String = Utf8Chars::new(data).collect();
-    let from_std = String::from_utf8_lossy(data);
-    assert_eq!(from_iter, from_std);
+    let (_, aligned, _) = unsafe { data.align_to::<u16>() };
+    assert!(Utf16Chars::new(aligned).eq(decode_utf16(aligned.iter().copied()).map(|r| r.unwrap_or(REPLACEMENT_CHARACTER))));
 });

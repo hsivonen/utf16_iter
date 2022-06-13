@@ -16,212 +16,121 @@
 
 #![no_std]
 
-//! Provides iteration by `char` over `&[u8]` containing potentially-invalid
-//! UTF-8 such that errors are handled according to the [WHATWG Encoding
-//! Standard](https://encoding.spec.whatwg.org/#utf-8-decoder) (i.e. the same
-//! way as in `String::from_utf8_lossy`).
+//! Provides iteration by `char` over `&[u16]` containing potentially-invalid
+//! UTF-16 such that errors are replaced with the REPLACEMENT CHARACTER.
 //!
-//! The trait `Utf8CharsEx` provides the convenience method `chars()` on
+//! The trait `Utf16CharsEx` provides the convenience method `chars()` on
 //! byte slices themselves instead of having to use the more verbose
-//! `Utf8Chars::new(slice)`.
-//!
-//! ```rust
-//! use utf8_iter::Utf8CharsEx;
-//! let data = b"\xFF\xC2\xE2\xE2\x98\xF0\xF0\x9F\xF0\x9F\x92\xE2\x98\x83";
-//! let from_iter: String = data.chars().collect();
-//! let from_std = String::from_utf8_lossy(data);
-//! assert_eq!(from_iter, from_std);
-//! ```
+//! `Utf16Chars::new(slice)`.
 
 use core::iter::FusedIterator;
 
-#[repr(align(64))] // Align to cache lines
-struct Utf8Data {
-    pub table: [u8; 384],
-}
-
-// This is generated code copied and pasted from utf_8.rs of encoding_rs.
-// Please don't edit by hand but instead regenerate as instructed in that
-// file.
-
-static UTF8_DATA: Utf8Data = Utf8Data {
-    table: [
-        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252, 252, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 148, 148, 148,
-        148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 164, 164, 164, 164, 164,
-        164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164,
-        164, 164, 164, 164, 164, 164, 164, 164, 164, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-        4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-        4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 32, 8, 8, 64, 8, 8, 8, 128, 4,
-        4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-    ],
-};
-
-// End manually copypasted generated code.
-
 #[inline(always)]
-fn in_inclusive_range8(i: u8, start: u8, end: u8) -> bool {
+fn in_inclusive_range16(i: u16, start: u16, end: u16) -> bool {
     i.wrapping_sub(start) <= (end - start)
 }
 
-/// Iterator by `char` over `&[u8]` that contains
-/// potentially-invalid UTF-8. See the crate documentation.
+/// Iterator by `char` over `&[u16]` that contains
+/// potentially-invalid UTF-16. See the crate documentation.
 #[derive(Debug, Clone)]
-pub struct Utf8Chars<'a> {
-    remaining: &'a [u8],
+pub struct Utf16Chars<'a> {
+    remaining: &'a [u16],
 }
 
-impl<'a> Utf8Chars<'a> {
+impl<'a> Utf16Chars<'a> {
     #[inline]
-    /// Creates the iterator from a byte slice.
-    pub fn new(bytes: &'a [u8]) -> Self {
-        Utf8Chars::<'a> { remaining: bytes }
+    /// Creates the iterator from a `u16` slice.
+    pub fn new(bytes: &'a [u16]) -> Self {
+        Utf16Chars::<'a> { remaining: bytes }
     }
+}
 
-    #[inline(never)]
-    fn next_fallback(&mut self) -> Option<char> {
-        if self.remaining.is_empty() {
-            return None;
+impl<'a> Iterator for Utf16Chars<'a> {
+    type Item = char;
+
+    #[inline(always)]
+    fn next(&mut self) -> Option<char> {
+        let (&first, tail) = self.remaining.split_first()?;
+        self.remaining = tail;
+        let surrogate_base = first.wrapping_sub(0xD800);
+        if surrogate_base > (0xDFFF - 0xD800) {
+            return Some(unsafe { char::from_u32_unchecked(u32::from(first)) });
         }
-        let first = self.remaining[0];
-        if first < 0x80 {
-            self.remaining = &self.remaining[1..];
-            return Some(char::from(first));
+        if surrogate_base <= (0xDBFF - 0xD800) {
+            if let Some((&low, tail_tail)) = self.remaining.split_first() {
+                if in_inclusive_range16(low, 0xDC00, 0xDFFF) {
+                    self.remaining = tail_tail;
+                    return Some(unsafe {
+                        char::from_u32_unchecked(
+                            (u32::from(first) << 10) + u32::from(low)
+                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                        )
+                    });
+                }
+            }
         }
-        if !in_inclusive_range8(first, 0xC2, 0xF4) || self.remaining.len() == 1 {
-            self.remaining = &self.remaining[1..];
-            return Some('\u{FFFD}');
-        }
-        let second = self.remaining[1];
-        let (lower_bound, upper_bound) = match first {
-            0xE0 => (0xA0, 0xBF),
-            0xED => (0x80, 0x9F),
-            0xF0 => (0x90, 0xBF),
-            0xF4 => (0x80, 0x8F),
-            _ => (0x80, 0xBF),
-        };
-        if !in_inclusive_range8(second, lower_bound, upper_bound) {
-            self.remaining = &self.remaining[1..];
-            return Some('\u{FFFD}');
-        }
-        if first < 0xE0 {
-            self.remaining = &self.remaining[2..];
-            let point = ((u32::from(first) & 0x1F) << 6) | (u32::from(second) & 0x3F);
-            return Some(unsafe { char::from_u32_unchecked(point) });
-        }
-        if self.remaining.len() == 2 {
-            self.remaining = &self.remaining[2..];
-            return Some('\u{FFFD}');
-        }
-        let third = self.remaining[2];
-        if !in_inclusive_range8(third, 0x80, 0xBF) {
-            self.remaining = &self.remaining[2..];
-            return Some('\u{FFFD}');
-        }
-        if first < 0xF0 {
-            self.remaining = &self.remaining[3..];
-            let point = ((u32::from(first) & 0xF) << 12)
-                | ((u32::from(second) & 0x3F) << 6)
-                | (u32::from(third) & 0x3F);
-            return Some(unsafe { char::from_u32_unchecked(point) });
-        }
-        // At this point, we have a valid 3-byte prefix of a
-        // four-byte sequence that has to be incomplete, because
-        // otherwise `next()` would have succeeded.
-        self.remaining = &self.remaining[3..];
         Some('\u{FFFD}')
     }
 }
 
-impl<'a> Iterator for Utf8Chars<'a> {
-    type Item = char;
-
-    #[inline]
-    fn next(&mut self) -> Option<char> {
-        // This loop is only broken out of as goto forward
-        #[allow(clippy::never_loop)]
-        loop {
-            if self.remaining.len() < 4 {
-                break;
-            }
-            let first = self.remaining[0];
-            if first < 0x80 {
-                self.remaining = &self.remaining[1..];
-                return Some(char::from(first));
-            }
-            let second = self.remaining[1];
-            if in_inclusive_range8(first, 0xC2, 0xDF) {
-                if !in_inclusive_range8(second, 0x80, 0xBF) {
-                    break;
-                }
-                let point = ((u32::from(first) & 0x1F) << 6) | (u32::from(second) & 0x3F);
-                self.remaining = &self.remaining[2..];
-                return Some(unsafe { char::from_u32_unchecked(point) });
-            }
-            // This table-based formulation was benchmark-based in encoding_rs,
-            // but it hasn't been re-benchmarked in this iterator context.
-            let third = self.remaining[2];
-            if first < 0xF0 {
-                if ((UTF8_DATA.table[usize::from(second)]
-                    & UTF8_DATA.table[usize::from(first) + 0x80])
-                    | (third >> 6))
-                    != 2
-                {
-                    break;
-                }
-                let point = ((u32::from(first) & 0xF) << 12)
-                    | ((u32::from(second) & 0x3F) << 6)
-                    | (u32::from(third) & 0x3F);
-                self.remaining = &self.remaining[3..];
-                return Some(unsafe { char::from_u32_unchecked(point) });
-            }
-            let fourth = self.remaining[3];
-            if (u16::from(
-                UTF8_DATA.table[usize::from(second)] & UTF8_DATA.table[usize::from(first) + 0x80],
-            ) | u16::from(third >> 6)
-                | (u16::from(fourth & 0xC0) << 2))
-                != 0x202
-            {
-                break;
-            }
-            let point = ((u32::from(first) & 0x7) << 18)
-                | ((u32::from(second) & 0x3F) << 12)
-                | ((u32::from(third) & 0x3F) << 6)
-                | (u32::from(fourth) & 0x3F);
-            self.remaining = &self.remaining[4..];
-            return Some(unsafe { char::from_u32_unchecked(point) });
-        }
-        self.next_fallback()
-    }
-}
-
-impl FusedIterator for Utf8Chars<'_> {}
+impl FusedIterator for Utf16Chars<'_> {}
 
 /// Convenience trait that adds `chars()` method similar to
 /// the one on string slices to byte slices.
-pub trait Utf8CharsEx {
-    fn chars(&self) -> Utf8Chars<'_>;
+pub trait Utf16CharsEx {
+    fn chars(&self) -> Utf16Chars<'_>;
 }
 
-impl Utf8CharsEx for [u8] {
-    /// Convenience method for creating an UTF-8 iterator
+impl Utf16CharsEx for [u16] {
+    /// Convenience method for creating an UTF-16 iterator
     /// for the slice.
     #[inline]
-    fn chars(&self) -> Utf8Chars<'_> {
-        Utf8Chars::new(self)
+    fn chars(&self) -> Utf16Chars<'_> {
+        Utf16Chars::new(self)
     }
 }
 
-// No manually-written tests, because the code passed multiple days of fuzzing
-// comparing with known-good behavior.
+#[cfg(test)]
+mod tests {
+    use crate::Utf16CharsEx;
+
+    #[test]
+    fn test_boundaries() {
+        assert!([0xD7FFu16]
+            .as_slice()
+            .chars()
+            .eq(core::iter::once('\u{D7FF}')));
+        assert!([0xE000u16]
+            .as_slice()
+            .chars()
+            .eq(core::iter::once('\u{E000}')));
+        assert!([0xD800u16]
+            .as_slice()
+            .chars()
+            .eq(core::iter::once('\u{FFFD}')));
+        assert!([0xDFFFu16]
+            .as_slice()
+            .chars()
+            .eq(core::iter::once('\u{FFFD}')));
+    }
+
+    #[test]
+    fn test_unpaired() {
+        assert!([0xD800u16, 0x0061u16]
+            .as_slice()
+            .chars()
+            .eq([0xFFFDu16, 0x0061u16].as_slice().chars()));
+        assert!([0xDFFFu16, 0x0061u16]
+            .as_slice()
+            .chars()
+            .eq([0xFFFDu16, 0x0061u16].as_slice().chars()));
+    }
+
+    #[test]
+    fn test_paired() {
+        assert!([0xD83Eu16, 0xDD73u16]
+            .as_slice()
+            .chars()
+            .eq(core::iter::once('🥳')));
+    }
+}
