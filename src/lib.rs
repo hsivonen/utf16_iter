@@ -79,6 +79,31 @@ impl<'a> Iterator for Utf16Chars<'a> {
     }
 }
 
+impl<'a> DoubleEndedIterator for Utf16Chars<'a> {
+    #[inline(always)]
+    fn next_back(&mut self) -> Option<char> {
+        let (&last, head) = self.remaining.split_last()?;
+        self.remaining = head;
+        if !in_inclusive_range16(last, 0xD800, 0xDFFF) {
+            return Some(unsafe { char::from_u32_unchecked(u32::from(last)) });
+        }
+        if in_inclusive_range16(last, 0xDC00, 0xDFFF) {
+            if let Some((&high, head_head)) = self.remaining.split_last() {
+                if in_inclusive_range16(high, 0xD800, 0xDBFF) {
+                    self.remaining = head_head;
+                    return Some(unsafe {
+                        char::from_u32_unchecked(
+                            (u32::from(high) << 10) + u32::from(last)
+                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                        )
+                    });
+                }
+            }
+        }
+        Some('\u{FFFD}')
+    }
+}
+
 impl FusedIterator for Utf16Chars<'_> {}
 
 /// Convenience trait that adds `chars()` method similar to
@@ -133,10 +158,33 @@ mod tests {
     }
 
     #[test]
+    fn test_unpaired_rev() {
+        assert!([0xD800u16, 0x0061u16]
+            .as_slice()
+            .chars()
+            .rev()
+            .eq([0xFFFDu16, 0x0061u16].as_slice().chars().rev()));
+        assert!([0xDFFFu16, 0x0061u16]
+            .as_slice()
+            .chars()
+            .rev()
+            .eq([0xFFFDu16, 0x0061u16].as_slice().chars().rev()));
+    }
+
+    #[test]
     fn test_paired() {
         assert!([0xD83Eu16, 0xDD73u16]
             .as_slice()
             .chars()
+            .eq(core::iter::once('🥳')));
+    }
+
+    #[test]
+    fn test_paired_rev() {
+        assert!([0xD83Eu16, 0xDD73u16]
+            .as_slice()
+            .chars()
+            .rev()
             .eq(core::iter::once('🥳')));
     }
 

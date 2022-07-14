@@ -6,9 +6,6 @@
 utf16_iter provides iteration by `char` over potentially-invalid UTF-16 `&[u16]`
 such that UTF-16 errors are replaced with the REPLACEMENT CHARACTER.
 
-At present, `DoubleEndedIterator` is not implemented, but it could be
-implemented in the future.
-
 This is a `no_std` crate.
 
 ## Licensing
@@ -24,6 +21,10 @@ Generated [API documentation](https://docs.rs/utf16_iter/) is available
 online.
 
 ## Release Notes
+
+### 1.0.2
+
+* Implemented `DoubleEndedIterator`.
 
 ### 1.0.1
 
