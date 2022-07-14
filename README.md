@@ -25,7 +25,7 @@ online.
 
 ## Release Notes
 
-### 1.0.0
+### 1.0.1
 
 * Added `as_slice()` method.
 
