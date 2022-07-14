@@ -43,6 +43,12 @@ impl<'a> Utf16Chars<'a> {
     pub fn new(bytes: &'a [u16]) -> Self {
         Utf16Chars::<'a> { remaining: bytes }
     }
+
+    /// Views the current remaining data in the iterator as a subslice
+    /// of the original slice.
+    pub fn as_slice(&self) -> &'a [u16] {
+        self.remaining
+    }
 }
 
 impl<'a> Iterator for Utf16Chars<'a> {
@@ -132,5 +138,21 @@ mod tests {
             .as_slice()
             .chars()
             .eq(core::iter::once('🥳')));
+    }
+
+    #[test]
+    fn test_as_slice() {
+        let mut iter = [0x0061u16, 0x0062u16].as_slice().chars();
+        let at_start = iter.as_slice();
+        assert_eq!(iter.next(), Some('a'));
+        let in_middle = iter.as_slice();
+        assert_eq!(iter.next(), Some('b'));
+        let at_end = iter.as_slice();
+        assert_eq!(at_start.len(), 2);
+        assert_eq!(in_middle.len(), 1);
+        assert_eq!(at_end.len(), 0);
+        assert_eq!(at_start[0], 0x0061u16);
+        assert_eq!(at_start[1], 0x0062u16);
+        assert_eq!(in_middle[0], 0x0062u16);
     }
 }

@@ -27,4 +27,8 @@ online.
 
 ### 1.0.0
 
+* Added `as_slice()` method.
+
+### 1.0.0
+
 The initial release.
