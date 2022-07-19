@@ -22,6 +22,10 @@ online.
 
 ## Release Notes
 
+### 1.0.3
+
+* Tweak inlining.
+
 ### 1.0.2
 
 * Implemented `DoubleEndedIterator`.

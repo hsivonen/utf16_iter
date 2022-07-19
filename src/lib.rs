@@ -38,7 +38,7 @@ pub struct Utf16Chars<'a> {
 }
 
 impl<'a> Utf16Chars<'a> {
-    #[inline]
+    #[inline(always)]
     /// Creates the iterator from a `u16` slice.
     pub fn new(bytes: &'a [u16]) -> Self {
         Utf16Chars::<'a> { remaining: bytes }
@@ -46,6 +46,7 @@ impl<'a> Utf16Chars<'a> {
 
     /// Views the current remaining data in the iterator as a subslice
     /// of the original slice.
+    #[inline(always)]
     pub fn as_slice(&self) -> &'a [u16] {
         self.remaining
     }
