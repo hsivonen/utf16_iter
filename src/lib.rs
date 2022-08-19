@@ -50,6 +50,42 @@ impl<'a> Utf16Chars<'a> {
     pub fn as_slice(&self) -> &'a [u16] {
         self.remaining
     }
+
+    #[inline(never)]
+    fn surrogate_next(&mut self, surrogate_base: u16, first: u16) -> char {
+        if surrogate_base <= (0xDBFF - 0xD800) {
+            if let Some((&low, tail_tail)) = self.remaining.split_first() {
+                if in_inclusive_range16(low, 0xDC00, 0xDFFF) {
+                    self.remaining = tail_tail;
+                    return unsafe {
+                        char::from_u32_unchecked(
+                            (u32::from(first) << 10) + u32::from(low)
+                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                        )
+                    };
+                }
+            }
+        }
+        '\u{FFFD}'
+    }
+
+    #[inline(never)]
+    fn surrogate_next_back(&mut self, last: u16) -> char {
+        if in_inclusive_range16(last, 0xDC00, 0xDFFF) {
+            if let Some((&high, head_head)) = self.remaining.split_last() {
+                if in_inclusive_range16(high, 0xD800, 0xDBFF) {
+                    self.remaining = head_head;
+                    return unsafe {
+                        char::from_u32_unchecked(
+                            (u32::from(high) << 10) + u32::from(last)
+                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                        )
+                    };
+                }
+            }
+        }
+        '\u{FFFD}'
+    }
 }
 
 impl<'a> Iterator for Utf16Chars<'a> {
@@ -63,20 +99,7 @@ impl<'a> Iterator for Utf16Chars<'a> {
         if surrogate_base > (0xDFFF - 0xD800) {
             return Some(unsafe { char::from_u32_unchecked(u32::from(first)) });
         }
-        if surrogate_base <= (0xDBFF - 0xD800) {
-            if let Some((&low, tail_tail)) = self.remaining.split_first() {
-                if in_inclusive_range16(low, 0xDC00, 0xDFFF) {
-                    self.remaining = tail_tail;
-                    return Some(unsafe {
-                        char::from_u32_unchecked(
-                            (u32::from(first) << 10) + u32::from(low)
-                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
-                        )
-                    });
-                }
-            }
-        }
-        Some('\u{FFFD}')
+        Some(self.surrogate_next(surrogate_base, first))
     }
 }
 
@@ -88,20 +111,7 @@ impl<'a> DoubleEndedIterator for Utf16Chars<'a> {
         if !in_inclusive_range16(last, 0xD800, 0xDFFF) {
             return Some(unsafe { char::from_u32_unchecked(u32::from(last)) });
         }
-        if in_inclusive_range16(last, 0xDC00, 0xDFFF) {
-            if let Some((&high, head_head)) = self.remaining.split_last() {
-                if in_inclusive_range16(high, 0xD800, 0xDBFF) {
-                    self.remaining = head_head;
-                    return Some(unsafe {
-                        char::from_u32_unchecked(
-                            (u32::from(high) << 10) + u32::from(last)
-                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
-                        )
-                    });
-                }
-            }
-        }
-        Some('\u{FFFD}')
+        Some(self.surrogate_next_back(last))
     }
 }
 
