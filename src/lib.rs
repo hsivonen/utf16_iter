@@ -23,6 +23,9 @@
 //! byte slices themselves instead of having to use the more verbose
 //! `Utf16Chars::new(slice)`.
 
+mod indices;
+
+pub use crate::indices::Utf16CharIndices;
 use core::iter::FusedIterator;
 
 #[inline(always)]
@@ -40,8 +43,10 @@ pub struct Utf16Chars<'a> {
 impl<'a> Utf16Chars<'a> {
     #[inline(always)]
     /// Creates the iterator from a `u16` slice.
-    pub fn new(bytes: &'a [u16]) -> Self {
-        Utf16Chars::<'a> { remaining: bytes }
+    pub fn new(code_units: &'a [u16]) -> Self {
+        Utf16Chars::<'a> {
+            remaining: code_units,
+        }
     }
 
     /// Views the current remaining data in the iterator as a subslice
@@ -117,10 +122,11 @@ impl<'a> DoubleEndedIterator for Utf16Chars<'a> {
 
 impl FusedIterator for Utf16Chars<'_> {}
 
-/// Convenience trait that adds `chars()` method similar to
-/// the one on string slices to byte slices.
+/// Convenience trait that adds `chars()` and `char_indices()` methods
+/// similar to the ones on string slices to `u16` slices.
 pub trait Utf16CharsEx {
     fn chars(&self) -> Utf16Chars<'_>;
+    fn char_indices(&self) -> Utf16CharIndices<'_>;
 }
 
 impl Utf16CharsEx for [u16] {
@@ -129,6 +135,12 @@ impl Utf16CharsEx for [u16] {
     #[inline]
     fn chars(&self) -> Utf16Chars<'_> {
         Utf16Chars::new(self)
+    }
+    /// Convenience method for creating a code unit index and
+    /// UTF-16 iterator for the slice.
+    #[inline]
+    fn char_indices(&self) -> Utf16CharIndices<'_> {
+        Utf16CharIndices::new(self)
     }
 }
 

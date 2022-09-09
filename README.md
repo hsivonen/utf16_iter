@@ -22,6 +22,10 @@ online.
 
 ## Release Notes
 
+### 1.0.4
+
+* `char_indices()` implementation.
+
 ### 1.0.3
 
 * Tweak inlining.
