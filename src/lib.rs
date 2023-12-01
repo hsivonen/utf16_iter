@@ -23,6 +23,10 @@
 //! byte slices themselves instead of having to use the more verbose
 //! `Utf16Chars::new(slice)`.
 
+mod report;
+
+pub use crate::report::ErrorReportingUtf16Chars;
+pub use crate::report::Utf16CharsError;
 use core::iter::FusedIterator;
 
 #[inline(always)]
@@ -57,6 +61,11 @@ impl<'a> Iterator for Utf16Chars<'a> {
 
     #[inline(always)]
     fn next(&mut self) -> Option<char> {
+        // It might be OK to delegate to `ErrorReportingUtf16Chars`, but since
+        // the methods are rather small, copypaste is probably clearer. Also,
+        // copypaste would _not_ be equivalent if any part of this was delegated
+        // to an `inline(never)` helper. However, previous experimentation indicated
+        // that such a helper didn't help performance here.
         let (&first, tail) = self.remaining.split_first()?;
         self.remaining = tail;
         let surrogate_base = first.wrapping_sub(0xD800);
