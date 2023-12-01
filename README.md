@@ -6,6 +6,9 @@
 utf16_iter provides iteration by `char` over potentially-invalid UTF-16 `&[u16]`
 such that UTF-16 errors are replaced with the REPLACEMENT CHARACTER.
 
+Iteration by `Result<char,Utf16CharsError>` is provided as an alternative that
+distinguishes unpaired surrogates from U+FFFD appearing in the input.
+
 This is a `no_std` crate.
 
 ## Licensing
@@ -21,6 +24,10 @@ Generated [API documentation](https://docs.rs/utf16_iter/) is available
 online.
 
 ## Release Notes
+
+### 1.0.4
+
+* Add iteration by `Result<char,Utf16CharsError>`.
 
 ### 1.0.3
 
