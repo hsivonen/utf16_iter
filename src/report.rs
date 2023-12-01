@@ -30,20 +30,12 @@ use core::iter::FusedIterator;
 /// [1]: https://github.com/rust-lang/rust/issues/118367
 /// [2]: https://github.com/rust-lang/rust/issues/103765
 #[derive(Debug, PartialEq)]
-#[repr(transparent)]
-pub struct Utf16CharsError {
-    _private: (),
-}
+#[non_exhaustive]
+pub struct Utf16CharsError;
 
 impl core::fmt::Display for Utf16CharsError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
         write!(f, "unpaired surrogate")
-    }
-}
-
-impl Utf16CharsError {
-    fn new() -> Self {
-        Utf16CharsError { _private: () }
     }
 }
 
@@ -94,7 +86,7 @@ impl<'a> Iterator for ErrorReportingUtf16Chars<'a> {
                 }
             }
         }
-        Some(Err(Utf16CharsError::new()))
+        Some(Err(Utf16CharsError))
     }
 }
 
@@ -119,7 +111,7 @@ impl<'a> DoubleEndedIterator for ErrorReportingUtf16Chars<'a> {
                 }
             }
         }
-        Some(Err(Utf16CharsError::new()))
+        Some(Err(Utf16CharsError))
     }
 }
 
