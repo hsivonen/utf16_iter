@@ -23,8 +23,10 @@
 //! byte slices themselves instead of having to use the more verbose
 //! `Utf16Chars::new(slice)`.
 
+mod indices;
 mod report;
 
+pub use crate::indices::Utf16CharIndices;
 pub use crate::report::ErrorReportingUtf16Chars;
 pub use crate::report::Utf16CharsError;
 use core::iter::FusedIterator;
@@ -44,8 +46,10 @@ pub struct Utf16Chars<'a> {
 impl<'a> Utf16Chars<'a> {
     #[inline(always)]
     /// Creates the iterator from a `u16` slice.
-    pub fn new(bytes: &'a [u16]) -> Self {
-        Utf16Chars::<'a> { remaining: bytes }
+    pub fn new(code_units: &'a [u16]) -> Self {
+        Utf16Chars::<'a> {
+            remaining: code_units,
+        }
     }
 
     /// Views the current remaining data in the iterator as a subslice
@@ -53,6 +57,42 @@ impl<'a> Utf16Chars<'a> {
     #[inline(always)]
     pub fn as_slice(&self) -> &'a [u16] {
         self.remaining
+    }
+
+    #[inline(never)]
+    fn surrogate_next(&mut self, surrogate_base: u16, first: u16) -> char {
+        if surrogate_base <= (0xDBFF - 0xD800) {
+            if let Some((&low, tail_tail)) = self.remaining.split_first() {
+                if in_inclusive_range16(low, 0xDC00, 0xDFFF) {
+                    self.remaining = tail_tail;
+                    return unsafe {
+                        char::from_u32_unchecked(
+                            (u32::from(first) << 10) + u32::from(low)
+                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                        )
+                    };
+                }
+            }
+        }
+        '\u{FFFD}'
+    }
+
+    #[inline(never)]
+    fn surrogate_next_back(&mut self, last: u16) -> char {
+        if in_inclusive_range16(last, 0xDC00, 0xDFFF) {
+            if let Some((&high, head_head)) = self.remaining.split_last() {
+                if in_inclusive_range16(high, 0xD800, 0xDBFF) {
+                    self.remaining = head_head;
+                    return unsafe {
+                        char::from_u32_unchecked(
+                            (u32::from(high) << 10) + u32::from(last)
+                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                        )
+                    };
+                }
+            }
+        }
+        '\u{FFFD}'
     }
 }
 
@@ -72,20 +112,7 @@ impl<'a> Iterator for Utf16Chars<'a> {
         if surrogate_base > (0xDFFF - 0xD800) {
             return Some(unsafe { char::from_u32_unchecked(u32::from(first)) });
         }
-        if surrogate_base <= (0xDBFF - 0xD800) {
-            if let Some((&low, tail_tail)) = self.remaining.split_first() {
-                if in_inclusive_range16(low, 0xDC00, 0xDFFF) {
-                    self.remaining = tail_tail;
-                    return Some(unsafe {
-                        char::from_u32_unchecked(
-                            (u32::from(first) << 10) + u32::from(low)
-                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
-                        )
-                    });
-                }
-            }
-        }
-        Some('\u{FFFD}')
+        Some(self.surrogate_next(surrogate_base, first))
     }
 }
 
@@ -97,29 +124,17 @@ impl<'a> DoubleEndedIterator for Utf16Chars<'a> {
         if !in_inclusive_range16(last, 0xD800, 0xDFFF) {
             return Some(unsafe { char::from_u32_unchecked(u32::from(last)) });
         }
-        if in_inclusive_range16(last, 0xDC00, 0xDFFF) {
-            if let Some((&high, head_head)) = self.remaining.split_last() {
-                if in_inclusive_range16(high, 0xD800, 0xDBFF) {
-                    self.remaining = head_head;
-                    return Some(unsafe {
-                        char::from_u32_unchecked(
-                            (u32::from(high) << 10) + u32::from(last)
-                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
-                        )
-                    });
-                }
-            }
-        }
-        Some('\u{FFFD}')
+        Some(self.surrogate_next_back(last))
     }
 }
 
 impl FusedIterator for Utf16Chars<'_> {}
 
-/// Convenience trait that adds `chars()` method similar to
-/// the one on string slices to byte slices.
+/// Convenience trait that adds `chars()` and `char_indices()` methods
+/// similar to the ones on string slices to `u16` slices.
 pub trait Utf16CharsEx {
     fn chars(&self) -> Utf16Chars<'_>;
+    fn char_indices(&self) -> Utf16CharIndices<'_>;
 }
 
 impl Utf16CharsEx for [u16] {
@@ -128,6 +143,12 @@ impl Utf16CharsEx for [u16] {
     #[inline]
     fn chars(&self) -> Utf16Chars<'_> {
         Utf16Chars::new(self)
+    }
+    /// Convenience method for creating a code unit index and
+    /// UTF-16 iterator for the slice.
+    #[inline]
+    fn char_indices(&self) -> Utf16CharIndices<'_> {
+        Utf16CharIndices::new(self)
     }
 }
 

@@ -25,9 +25,13 @@ online.
 
 ## Release Notes
 
-### 1.0.4
+### 1.0.5
 
 * Add iteration by `Result<char,Utf16CharsError>`.
+
+### 1.0.4
+
+* `char_indices()` implementation.
 
 ### 1.0.3
 

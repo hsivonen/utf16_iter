@@ -50,8 +50,10 @@ pub struct ErrorReportingUtf16Chars<'a> {
 impl<'a> ErrorReportingUtf16Chars<'a> {
     #[inline(always)]
     /// Creates the iterator from a `u16` slice.
-    pub fn new(bytes: &'a [u16]) -> Self {
-        ErrorReportingUtf16Chars::<'a> { remaining: bytes }
+    pub fn new(code_units: &'a [u16]) -> Self {
+        ErrorReportingUtf16Chars::<'a> {
+            remaining: code_units,
+        }
     }
 
     /// Views the current remaining data in the iterator as a subslice
@@ -60,6 +62,42 @@ impl<'a> ErrorReportingUtf16Chars<'a> {
     pub fn as_slice(&self) -> &'a [u16] {
         self.remaining
     }
+
+    #[inline(never)]
+    fn surrogate_next(&mut self, surrogate_base: u16, first: u16) -> Result<char, Utf16CharsError> {
+        if surrogate_base <= (0xDBFF - 0xD800) {
+            if let Some((&low, tail_tail)) = self.remaining.split_first() {
+                if in_inclusive_range16(low, 0xDC00, 0xDFFF) {
+                    self.remaining = tail_tail;
+                    return Ok(unsafe {
+                        char::from_u32_unchecked(
+                            (u32::from(first) << 10) + u32::from(low)
+                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                        )
+                    });
+                }
+            }
+        }
+        Err(Utf16CharsError)
+    }
+
+    #[inline(never)]
+    fn surrogate_next_back(&mut self, last: u16) -> Result<char, Utf16CharsError> {
+        if in_inclusive_range16(last, 0xDC00, 0xDFFF) {
+            if let Some((&high, head_head)) = self.remaining.split_last() {
+                if in_inclusive_range16(high, 0xD800, 0xDBFF) {
+                    self.remaining = head_head;
+                    return Ok(unsafe {
+                        char::from_u32_unchecked(
+                            (u32::from(high) << 10) + u32::from(last)
+                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                        )
+                    });
+                }
+            }
+        }
+        Err(Utf16CharsError)
+    }
 }
 
 impl<'a> Iterator for ErrorReportingUtf16Chars<'a> {
@@ -67,26 +105,18 @@ impl<'a> Iterator for ErrorReportingUtf16Chars<'a> {
 
     #[inline(always)]
     fn next(&mut self) -> Option<Result<char, Utf16CharsError>> {
+        // Not delegating directly to `ErrorReportingUtf16Chars` to avoid
+        // an extra branch in the common case based on an inspection of
+        // generated code. Be sure to inspect the generated code as inlined
+        // into an actual usage site carefully if attempting to consolidate
+        // the source code here.
         let (&first, tail) = self.remaining.split_first()?;
         self.remaining = tail;
         let surrogate_base = first.wrapping_sub(0xD800);
         if surrogate_base > (0xDFFF - 0xD800) {
             return Some(Ok(unsafe { char::from_u32_unchecked(u32::from(first)) }));
         }
-        if surrogate_base <= (0xDBFF - 0xD800) {
-            if let Some((&low, tail_tail)) = self.remaining.split_first() {
-                if in_inclusive_range16(low, 0xDC00, 0xDFFF) {
-                    self.remaining = tail_tail;
-                    return Some(Ok(unsafe {
-                        char::from_u32_unchecked(
-                            (u32::from(first) << 10) + u32::from(low)
-                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
-                        )
-                    }));
-                }
-            }
-        }
-        Some(Err(Utf16CharsError))
+        Some(self.surrogate_next(surrogate_base, first))
     }
 }
 
@@ -98,20 +128,7 @@ impl<'a> DoubleEndedIterator for ErrorReportingUtf16Chars<'a> {
         if !in_inclusive_range16(last, 0xD800, 0xDFFF) {
             return Some(Ok(unsafe { char::from_u32_unchecked(u32::from(last)) }));
         }
-        if in_inclusive_range16(last, 0xDC00, 0xDFFF) {
-            if let Some((&high, head_head)) = self.remaining.split_last() {
-                if in_inclusive_range16(high, 0xD800, 0xDBFF) {
-                    self.remaining = head_head;
-                    return Some(Ok(unsafe {
-                        char::from_u32_unchecked(
-                            (u32::from(high) << 10) + u32::from(last)
-                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
-                        )
-                    }));
-                }
-            }
-        }
-        Some(Err(Utf16CharsError))
+        Some(self.surrogate_next_back(last))
     }
 }
 
