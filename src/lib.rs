@@ -23,16 +23,26 @@
 //! byte slices themselves instead of having to use the more verbose
 //! `Utf16Chars::new(slice)`.
 
+#[cfg(feature = "icu_collections")]
+mod cptrie;
+#[cfg(feature = "icu_collections")]
+mod cptrie_indices;
 mod indices;
 mod report;
 
+#[cfg(feature = "icu_collections")]
+pub use crate::cptrie::Utf16CharsWithTrie;
+#[cfg(feature = "icu_collections")]
+pub use crate::cptrie::Utf16CharsWithTrieEx;
+#[cfg(feature = "icu_collections")]
+pub use crate::cptrie_indices::Utf16CharIndicesWithTrie;
 pub use crate::indices::Utf16CharIndices;
 pub use crate::report::ErrorReportingUtf16Chars;
 pub use crate::report::Utf16CharsError;
 use core::iter::FusedIterator;
 
 #[inline(always)]
-fn in_inclusive_range16(i: u16, start: u16, end: u16) -> bool {
+pub(crate) fn in_inclusive_range16(i: u16, start: u16, end: u16) -> bool {
     i.wrapping_sub(start) <= (end - start)
 }
 
@@ -133,7 +143,12 @@ impl FusedIterator for Utf16Chars<'_> {}
 /// Convenience trait that adds `chars()` and `char_indices()` methods
 /// similar to the ones on string slices to `u16` slices.
 pub trait Utf16CharsEx {
+    /// Convenience method for creating an UTF-16 iterator
+    /// for the slice.
     fn chars(&self) -> Utf16Chars<'_>;
+
+    /// Convenience method for creating a code unit index and
+    /// UTF-16 iterator for the slice.
     fn char_indices(&self) -> Utf16CharIndices<'_>;
 }
 
