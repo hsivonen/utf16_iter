@@ -24,7 +24,7 @@ use icu_collections::codepointtrie::WithTrie;
 /// Iterator by `char` and `icu_collections::codepointtrie::TrieValue`
 /// over `&[u16]` that contains potentially-invalid UTF-16. See the
 /// crate documentation.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Utf16CharsWithTrie<'slice, 'trie, T, V>
 where
     V: TrieValue,
@@ -98,11 +98,27 @@ where
     }
 }
 
+impl<'slice, 'trie, T, V> Clone for Utf16CharsWithTrie<'slice, 'trie, T, V>
+where
+    V: TrieValue,
+    T: AbstractCodePointTrie<'trie, V>,
+{
+    #[inline]
+    fn clone(&self) -> Self {
+        Self {
+            remaining: self.remaining,
+            trie: self.trie,
+            phantom: PhantomData,
+        }
+    }
+}
+
 impl<'slice, 'trie, T, V> WithTrie<'trie, T, V> for Utf16CharsWithTrie<'slice, 'trie, T, V>
 where
     V: TrieValue,
     T: AbstractCodePointTrie<'trie, V>,
 {
+    #[inline]
     fn trie(&self) -> &'trie T {
         self.trie
     }
