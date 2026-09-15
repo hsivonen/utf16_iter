@@ -14,6 +14,8 @@
 // See the Licenses for the specific language governing permissions and
 // limitations under the Licenses.
 
+#![allow(clippy::unusual_byte_groupings)]
+
 /// `true` iff `u` is a surrogate (high or low).
 #[inline(always)]
 pub fn is_surrogate(u: u16) -> bool {

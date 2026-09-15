@@ -97,6 +97,12 @@ where
         }
     }
 
+    /// Obtains a reference to the handler.
+    #[inline(always)]
+    pub fn handler(&self) -> &H {
+        self.iter.handler()
+    }
+
     /// Views the underlying data as a subslice of the original data.
     ///
     /// This has the same lifetime as the original slice, and so the
