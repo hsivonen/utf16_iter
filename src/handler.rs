@@ -15,6 +15,7 @@
 // limitations under the Licenses.
 
 use crate::helpers::*;
+use core::slice::Iter;
 
 /// Mapping from the two kinds of code unit sequences or error
 /// to output.
@@ -83,7 +84,7 @@ pub struct Utf16CharsWithHandler<'a, H>
 where
     H: Utf16Handler,
 {
-    remaining: &'a [u16],
+    iter: Iter<'a, u16>,
     handler: H,
 }
 
@@ -95,7 +96,7 @@ where
     /// Creates the iterator from a `u16` slice.
     pub fn new(code_units: &'a [u16], handler: H) -> Self {
         Utf16CharsWithHandler::<'a, H> {
-            remaining: code_units,
+            iter: code_units.iter(),
             handler,
         }
     }
@@ -104,7 +105,7 @@ where
     /// of the original slice.
     #[inline(always)]
     pub fn as_slice(&self) -> &'a [u16] {
-        self.remaining
+        self.iter.as_slice()
     }
 
     /// Obtains a reference to the handler.
@@ -122,9 +123,10 @@ where
     #[inline(never)]
     fn surrogate_next(&mut self, surrogate: u16) -> H::Output {
         if is_high_surrogate(surrogate) {
-            if let Some((&low, tail_tail)) = self.remaining.split_first() {
+            let mut cloned_iter = self.iter.clone();
+            if let Some(&low) = cloned_iter.next() {
                 if is_low_surrogate(low) {
-                    self.remaining = tail_tail;
+                    self.iter = cloned_iter;
                     // SAFETY: We have established that we have a surrogate
                     // pair.
                     return unsafe { self.handler.surrogate_pair(surrogate, low) };
@@ -138,9 +140,10 @@ where
     #[inline(never)]
     fn surrogate_next_back(&mut self, surrogate: u16) -> H::Output {
         if is_low_surrogate(surrogate) {
-            if let Some((&high, head_head)) = self.remaining.split_last() {
+            let mut cloned_iter = self.iter.clone();
+            if let Some(&high) = cloned_iter.next_back() {
                 if is_high_surrogate(high) {
-                    self.remaining = head_head;
+                    self.iter = cloned_iter;
                     // SAFETY: We have established that we have a surrogate
                     // pair.
                     return unsafe { self.handler.surrogate_pair(high, surrogate) };
@@ -159,8 +162,7 @@ where
 
     #[inline(always)]
     fn next(&mut self) -> Option<H::Output> {
-        let (&first, tail) = self.remaining.split_first()?;
-        self.remaining = tail;
+        let first = *self.iter.next()?;
         if !is_surrogate(first) {
             // SAFETY: We have established that `first` is not a surrogate.
             return Some(unsafe { self.handler.bmp(first) });
@@ -175,8 +177,7 @@ where
 {
     #[inline(always)]
     fn next_back(&mut self) -> Option<H::Output> {
-        let (&last, head) = self.remaining.split_last()?;
-        self.remaining = head;
+        let last = *self.iter.next_back()?;
         if !is_surrogate(last) {
             // SAFETY: We have established that `last` is not a surrogate.
             return Some(unsafe { self.handler.bmp(last) });
