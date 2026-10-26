@@ -14,8 +14,21 @@
 // See the Licenses for the specific language governing permissions and
 // limitations under the Licenses.
 
-use crate::helpers::*;
 use core::slice::Iter;
+use utf_types::utf16::Bmp;
+use utf_types::utf16::BmpOrSurrogate;
+use utf_types::utf16::HighSurrogate;
+use utf_types::utf16::LowSurrogate;
+use utf_types::utf16::Surrogate;
+use utf_types::utf16::SurrogatePair;
+
+const REPLACEMENT_CHARACTER_AS_BMP: Bmp = const {
+    if let Ok(bmp) = Bmp::try_new(char::REPLACEMENT_CHARACTER as u16) {
+        bmp
+    } else {
+        panic!()
+    }
+};
 
 /// Mapping from the two kinds of code unit sequences or error
 /// to output.
@@ -26,54 +39,35 @@ pub trait Utf16Handler {
 
     /// Map a single-code-unit UTF-16 sequence to `Output`.
     ///
-    /// When `Output` is `char`, `unsafe { char::from_u32_unchecked(u32::from(bmp)) }`
+    /// When `Output` is `char`, `bmp.to_char()`
     /// is the appropriate implementation.
     ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `bmp` is not a surrogate.
-    /// The callers in `utf16_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
-    unsafe fn bmp(&self, bmp: u16) -> Self::Output;
+    /// The implementation of this method is expected to be
+    /// declared `#[inline(always)]`.
+    fn bmp(&self, bmp: Bmp) -> Self::Output;
 
     /// Map a two-code-unit UTF-16 sequence to `Output`.
     ///
-    /// When `Output` is `char`, `unsafe { surrogate_pair_to_char(high_surrogate, low_surrogate) }`
+    /// When `Output` is `char`, `surrogate_pair.to_char()`
     /// is the appropriate implementation.
     ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `high_surrogate` is
-    /// is a high surrogate and `low_surrogate` is a low
-    /// surrogate.
-    /// The callers in `utf16_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
-    unsafe fn surrogate_pair(&self, high_surrogate: u16, low_surrogate: u16) -> Self::Output;
+    /// The implementation of this method is expected to be
+    /// declared `#[inline(always)]`.
+    fn surrogate_pair(&self, surrogate_pair: SurrogatePair) -> Self::Output;
 
-    /// Map a single UTF-16 error to `Output`.
-    ///
-    /// One unpaired surrogate
+    /// Map a single UTF-16 error (one unpaired surrogate) to `Output`.
     ///
     /// When `Output` is `char`,
     /// `char::REPLACEMENT_CHARACTER`
     /// is the appropriate implementation. The provided
     /// implementation delegates to `bmp` by passing
-    /// `char::REPLACEMENT_CHARACTER as u16`.
+    /// the value corresponding to the REPLACEMENT CHARACTER.
     ///
     /// The implementation of this method is expected to
     /// be declared `#[inline(always)]`.
     #[inline(always)]
     fn error(&self) -> Self::Output {
-        // SAFETY: The constant is known not to be a surrogate.
-        unsafe { self.bmp(char::REPLACEMENT_CHARACTER as u16) }
+        self.bmp(REPLACEMENT_CHARACTER_AS_BMP)
     }
 }
 
@@ -121,15 +115,13 @@ where
 
     #[cold]
     #[inline(never)]
-    fn surrogate_next(&mut self, surrogate: u16) -> H::Output {
-        if is_high_surrogate(surrogate) {
+    fn surrogate_next(&mut self, surrogate: Surrogate) -> H::Output {
+        if let Ok(high) = HighSurrogate::try_new_with_surrogate(surrogate) {
             let mut cloned_iter = self.iter.clone();
-            if let Some(&low) = cloned_iter.next() {
-                if is_low_surrogate(low) {
+            if let Some(&u) = cloned_iter.next() {
+                if let Ok(low) = LowSurrogate::try_new(u) {
                     self.iter = cloned_iter;
-                    // SAFETY: We have established that we have a surrogate
-                    // pair.
-                    return unsafe { self.handler.surrogate_pair(surrogate, low) };
+                    return self.handler.surrogate_pair(SurrogatePair::new(high, low));
                 }
             }
         }
@@ -138,15 +130,13 @@ where
 
     #[cold]
     #[inline(never)]
-    fn surrogate_next_back(&mut self, surrogate: u16) -> H::Output {
-        if is_low_surrogate(surrogate) {
+    fn surrogate_next_back(&mut self, surrogate: Surrogate) -> H::Output {
+        if let Ok(low) = LowSurrogate::try_new_with_surrogate(surrogate) {
             let mut cloned_iter = self.iter.clone();
-            if let Some(&high) = cloned_iter.next_back() {
-                if is_high_surrogate(high) {
+            if let Some(&u) = cloned_iter.next_back() {
+                if let Ok(high) = HighSurrogate::try_new(u) {
                     self.iter = cloned_iter;
-                    // SAFETY: We have established that we have a surrogate
-                    // pair.
-                    return unsafe { self.handler.surrogate_pair(high, surrogate) };
+                    return self.handler.surrogate_pair(SurrogatePair::new(high, low));
                 }
             }
         }
@@ -162,12 +152,10 @@ where
 
     #[inline(always)]
     fn next(&mut self) -> Option<H::Output> {
-        let first = *self.iter.next()?;
-        if !is_surrogate(first) {
-            // SAFETY: We have established that `first` is not a surrogate.
-            return Some(unsafe { self.handler.bmp(first) });
+        match BmpOrSurrogate::new(*self.iter.next()?) {
+            BmpOrSurrogate::Bmp(bmp) => Some(self.handler.bmp(bmp)),
+            BmpOrSurrogate::Surrogate(surrogate) => Some(self.surrogate_next(surrogate)),
         }
-        Some(self.surrogate_next(first))
     }
 }
 
@@ -177,12 +165,10 @@ where
 {
     #[inline(always)]
     fn next_back(&mut self) -> Option<H::Output> {
-        let last = *self.iter.next_back()?;
-        if !is_surrogate(last) {
-            // SAFETY: We have established that `last` is not a surrogate.
-            return Some(unsafe { self.handler.bmp(last) });
+        match BmpOrSurrogate::new(*self.iter.next_back()?) {
+            BmpOrSurrogate::Bmp(bmp) => Some(self.handler.bmp(bmp)),
+            BmpOrSurrogate::Surrogate(surrogate) => Some(self.surrogate_next_back(surrogate)),
         }
-        Some(self.surrogate_next_back(last))
     }
 }
 

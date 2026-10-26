@@ -14,7 +14,10 @@
 // See the Licenses for the specific language governing permissions and
 // limitations under the Licenses.
 
-use crate::helpers::*;
+use utf_types::utf16::Bmp;
+use utf_types::utf16::SurrogatePair;
+use utf_types::utf16::Utf16CodeUnitSequence;
+
 use crate::Utf16Handler;
 
 /// The basic `Output = char` case.
@@ -31,47 +34,15 @@ impl Utf16Handler for DefaultHandler {
     type Output = char;
 
     /// Map a single-code-unit UTF-16 sequence to `Output`.
-    ///
-    /// When `Output` is `char`, `unsafe { char::from_u32_unchecked(u32::from(bmp)) }`
-    /// is the appropriate implementation.
-    ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `bmp` is not a surrogate.
-    /// The callers in `utf16_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
     #[inline(always)]
-    unsafe fn bmp(&self, bmp: u16) -> Self::Output {
-        // SAFETY: The safety-usable invariant of this method
-        // is the safety invariant of `bmp_to_char`.
-        unsafe { bmp_to_char(bmp) }
+    fn bmp(&self, bmp: Bmp) -> Self::Output {
+        bmp.to_char()
     }
 
     /// Map a two-code-unit UTF-16 sequence to `Output`.
-    ///
-    /// When `Output` is `char`, `unsafe { surrogate_pair_to_char(high_surrogate, low_surrogate) }`
-    /// is the appropriate implementation.
-    ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `high_surrogate` is
-    /// is a high surrogate and `low_surrogate` is a low
-    /// surrogate.
-    /// The callers in `utf16_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
     #[inline(always)]
-    unsafe fn surrogate_pair(&self, high_surrogate: u16, low_surrogate: u16) -> Self::Output {
-        // SAFETY: The safety-usable invariant of this method
-        // is the safety invariant of `surrogate_pair_to_char`.
-        unsafe { surrogate_pair_to_char(high_surrogate, low_surrogate) }
+    fn surrogate_pair(&self, surrogate_pair: SurrogatePair) -> Self::Output {
+        surrogate_pair.to_char()
     }
 }
 
