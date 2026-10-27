@@ -18,7 +18,6 @@ use core::fmt::Formatter;
 
 use utf_types::utf16::Bmp;
 use utf_types::utf16::SurrogatePair;
-use utf_types::utf16::Utf16CodeUnitSequence;
 
 use crate::Utf16Handler;
 

@@ -14,6 +14,15 @@
 // See the Licenses for the specific language governing permissions and
 // limitations under the Licenses.
 
+//! UTF-16 decoding with pluggable handler for the two code unit sequence
+//! lengths and error.
+//!
+//! The handler implementation is expected not to mutate any state.
+//! Its primary purpose is to allow read-only data structure lookups
+//! to be fused into the decoder when the data structure layout benefits
+//! from knowing BMP vs. non-BMP detail without having to re-discover it
+//! from `char`.
+
 use core::slice::Iter;
 use utf_types::utf16::Bmp;
 use utf_types::utf16::BmpOrSurrogate;
@@ -156,6 +165,20 @@ where
             BmpOrSurrogate::Bmp(bmp) => Some(self.handler.bmp(bmp)),
             BmpOrSurrogate::Surrogate(surrogate) => Some(self.surrogate_next(surrogate)),
         }
+    }
+
+    // TODO: Optimize `count` without a circular dependency
+
+    #[inline(always)]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.as_slice().len();
+        (len.div_ceil(2), Some(len))
+    }
+
+    #[inline(always)]
+    fn last(mut self) -> Option<Self::Item> {
+        // No need to go through the entire string.
+        self.next_back()
     }
 }
 

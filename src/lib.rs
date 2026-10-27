@@ -15,6 +15,7 @@
 // limitations under the Licenses.
 
 #![no_std]
+#![warn(missing_docs)]
 
 //! Provides iteration by `char` over `&[u16]` containing potentially-invalid
 //! UTF-16 such that errors are replaced with the REPLACEMENT CHARACTER.
@@ -23,12 +24,11 @@
 //! `u16` slices themselves instead of having to use the more verbose
 //! `Utf16Chars::new(slice)`.
 
+mod basic;
 mod handler;
 mod indices;
-mod report;
-#[macro_use]
 mod macros;
-mod basic;
+mod report;
 
 pub use crate::basic::Utf16CharIndices;
 pub use crate::basic::Utf16Chars;

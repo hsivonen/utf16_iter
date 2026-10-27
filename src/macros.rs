@@ -52,6 +52,22 @@ macro_rules! named_iterators_from_no_argument_handler {
             fn next(&mut self) -> Option<Self::Item> {
                 self.inner.next()
             }
+
+            #[inline(always)]
+            fn count(self) -> usize {
+                self.inner.count()
+            }
+
+            #[inline(always)]
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                self.inner.size_hint()
+            }
+
+            #[inline(always)]
+            fn last(mut self) -> Option<Self::Item> {
+                // No need to go through the entire string.
+                self.next_back()
+            }
         }
 
         impl<'a> DoubleEndedIterator for $chars<'a> {
@@ -81,10 +97,12 @@ macro_rules! named_iterators_from_no_argument_handler {
             /// Views the current remaining data in the iterator as a subslice
             /// of the original slice.
             #[inline(always)]
+            #[must_use]
             pub fn as_slice(&self) -> &'a [u16] {
                 self.inner.as_slice()
             }
 
+            /// The current index offset
             #[inline(always)]
             #[must_use]
             pub fn offset(&self) -> usize {
@@ -98,6 +116,22 @@ macro_rules! named_iterators_from_no_argument_handler {
             #[inline(always)]
             fn next(&mut self) -> Option<Self::Item> {
                 self.inner.next()
+            }
+
+            #[inline(always)]
+            fn count(self) -> usize {
+                self.inner.count()
+            }
+
+            #[inline(always)]
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                self.inner.size_hint()
+            }
+
+            #[inline(always)]
+            fn last(mut self) -> Option<Self::Item> {
+                // No need to go through the entire string.
+                self.next_back()
             }
         }
 

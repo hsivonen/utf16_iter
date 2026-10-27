@@ -16,7 +16,6 @@
 
 use utf_types::utf16::Bmp;
 use utf_types::utf16::SurrogatePair;
-use utf_types::utf16::Utf16CodeUnitSequence;
 
 use crate::Utf16Handler;
 
@@ -62,7 +61,9 @@ crate::macros::named_iterators_from_no_argument_handler!(
 /// Convenience trait that adds `chars()` and `char_indices()` methods
 /// similar to the ones on string slices to `u16` slices.
 pub trait Utf16CharsEx {
+    /// Iterator over `char`s
     fn chars(&self) -> Utf16Chars<'_>;
+    /// Iterator over `char`s and their indices
     fn char_indices(&self) -> Utf16CharIndices<'_>;
 }
 
