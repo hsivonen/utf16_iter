@@ -48,14 +48,14 @@ macro_rules! named_iterators_from_no_argument_handler {
         impl<'a> Iterator for $chars<'a> {
             type Item = $item;
 
-            #[inline]
+            #[inline(always)]
             fn next(&mut self) -> Option<Self::Item> {
                 self.inner.next()
             }
         }
 
         impl<'a> DoubleEndedIterator for $chars<'a> {
-            #[inline]
+            #[inline(always)]
             fn next_back(&mut self) -> Option<Self::Item> {
                 self.inner.next_back()
             }
@@ -85,7 +85,7 @@ macro_rules! named_iterators_from_no_argument_handler {
                 self.inner.as_slice()
             }
 
-            #[inline]
+            #[inline(always)]
             #[must_use]
             pub fn offset(&self) -> usize {
                 self.inner.offset()
@@ -95,14 +95,14 @@ macro_rules! named_iterators_from_no_argument_handler {
         impl<'a> Iterator for $char_indices<'a> {
             type Item = (usize, $item);
 
-            #[inline]
+            #[inline(always)]
             fn next(&mut self) -> Option<Self::Item> {
                 self.inner.next()
             }
         }
 
         impl<'a> DoubleEndedIterator for $char_indices<'a> {
-            #[inline]
+            #[inline(always)]
             fn next_back(&mut self) -> Option<Self::Item> {
                 self.inner.next_back()
             }

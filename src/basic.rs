@@ -69,13 +69,13 @@ pub trait Utf16CharsEx {
 impl Utf16CharsEx for [u16] {
     /// Convenience method for creating an UTF-16 iterator
     /// for the slice.
-    #[inline]
+    #[inline(always)]
     fn chars(&self) -> Utf16Chars<'_> {
         Utf16Chars::new(self)
     }
     /// Convenience method for creating a code unit index and
     /// UTF-16 iterator for the slice.
-    #[inline]
+    #[inline(always)]
     fn char_indices(&self) -> Utf16CharIndices<'_> {
         Utf16CharIndices::new(self)
     }

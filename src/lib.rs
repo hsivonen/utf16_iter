@@ -20,7 +20,7 @@
 //! UTF-16 such that errors are replaced with the REPLACEMENT CHARACTER.
 //!
 //! The trait `Utf16CharsEx` provides the convenience method `chars()` on
-//! byte slices themselves instead of having to use the more verbose
+//! `u16` slices themselves instead of having to use the more verbose
 //! `Utf16Chars::new(slice)`.
 
 mod handler;

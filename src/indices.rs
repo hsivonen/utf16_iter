@@ -38,7 +38,7 @@ where
 {
     type Item = (usize, H::Output);
 
-    #[inline]
+    #[inline(always)]
     fn next(&mut self) -> Option<(usize, H::Output)> {
         let pre_len = self.as_slice().len();
         match self.iter.next() {
@@ -52,17 +52,17 @@ where
         }
     }
 
-    #[inline]
+    #[inline(always)]
     fn count(self) -> usize {
         self.iter.count()
     }
 
-    #[inline]
+    #[inline(always)]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
     }
 
-    #[inline]
+    #[inline(always)]
     fn last(mut self) -> Option<(usize, H::Output)> {
         // No need to go through the entire string.
         self.next_back()
@@ -73,7 +73,7 @@ impl<'a, H> DoubleEndedIterator for Utf16CharIndicesWithHandler<'a, H>
 where
     H: Utf16Handler,
 {
-    #[inline]
+    #[inline(always)]
     fn next_back(&mut self) -> Option<(usize, H::Output)> {
         self.iter.next_back().map(|ch| {
             let index = self.front_offset + self.as_slice().len();
@@ -108,7 +108,7 @@ where
     /// This has the same lifetime as the original slice, and so the
     /// iterator can continue to be used while this exists.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub fn as_slice(&self) -> &'a [u16] {
         self.iter.as_slice()
     }
@@ -131,7 +131,7 @@ where
     /// assert_eq!(chars.offset(), 3);
     /// assert_eq!(chars.next(), None);
     /// ```
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn offset(&self) -> usize {
         self.front_offset

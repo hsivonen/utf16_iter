@@ -27,7 +27,7 @@ use crate::Utf16Handler;
 /// The value of the unpaired surrogate is not exposed in order
 /// to keep the `Result` type (and `Option`-wrapping thereof)
 /// the same size as `char`.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq, Hash)]
 #[non_exhaustive]
 pub struct Utf16CharsError;
 
