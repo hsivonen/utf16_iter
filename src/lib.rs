@@ -16,6 +16,7 @@
 
 #![no_std]
 #![warn(missing_docs)]
+#![forbid(unsafe_code)]
 
 //! Provides iteration by `char` over `&[u16]` containing potentially-invalid
 //! UTF-16 such that errors are replaced with the REPLACEMENT CHARACTER.
